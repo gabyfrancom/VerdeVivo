@@ -237,6 +237,20 @@
     font-size:.8rem;margin:12px 0;
   }
   .tips li{margin-left:16px;margin-bottom:4px}
+
+  /* Botones foto galería/cámara */
+  .photo-actions{display:flex;gap:8px;margin-top:8px}
+  .photo-actions .btn{flex:1;padding:8px;font-size:.8rem;background:var(--green-light);color:var(--green-dark)}
+  body.dark .photo-actions .btn{background:#2c4023;color:#bfe3b8}
+
+  /* Botón ficha (📖) y modal ficha */
+  .src-link{background:none;border:none;cursor:pointer;font-size:.95rem;padding:0 2px;vertical-align:middle}
+  .ficha h4{margin:12px 0 3px;font-size:.92rem}
+  .ficha p,.ficha li{font-size:.84rem;color:var(--muted)}
+  .ficha ul{margin-left:16px;margin-bottom:4px}
+  .ficha a{color:var(--green)}
+  .ficha .sci{font-size:.8rem;color:var(--muted);font-style:italic;margin-bottom:6px}
+  body.dark .ficha a{color:#8fd694}
   body.dark .prune-img-wrap{background:#26351f}
   body.dark .marker-item input{background:#26301f;border-color:#3a4a35;color:var(--ink)}
   body.dark .tips{background:#26351f}
@@ -303,13 +317,19 @@
       <div class="field">
         <label>📷 Foto de tu planta</label>
         <div class="photo-box" id="photoBox">
-          <span id="photoHint">Toca para subir una foto 🌱</span>
+          <span id="photoHint">Toca para subir una foto, o usa los botones 🌱</span>
+        </div>
+        <div class="photo-actions">
+          <button type="button" class="btn" id="btnGallery">📁 Galería</button>
+          <button type="button" class="btn" id="btnCamera">📷 Cámara</button>
         </div>
         <input type="file" id="fPhotoFile" accept="image/*" style="display:none">
+        <input type="file" id="fCameraFile" accept="image/*" capture="environment" style="display:none">
       </div>
       <div class="field">
         <label>Nombre de la planta *</label>
         <input id="fName" required placeholder="Ej: Monstera del salón">
+        <div id="dbNote" style="font-size:.75rem;color:var(--green);margin-top:4px"></div>
       </div>
       <div class="field">
         <label>Especie (opcional)</label>
@@ -383,6 +403,11 @@
   </div>
 </div>
 
+<!-- Modal ficha de la planta -->
+<div class="modal-back" id="fichaBack">
+  <div class="modal ficha" id="fichaBody"></div>
+</div>
+
 <script>
 const LOCATIONS = ["Salón","Cocina","Dormitorio","Balcón","Jardín","Terraza","Oficina"];
 const SUN_LABEL = {sombra:"Sombra", parcial:"Sol parcial", pleno:"Sol pleno"};
@@ -441,6 +466,7 @@ function render(){
   grid.innerHTML = list.map(p=>{
     const s = plantStatus(p);
     const badge = {ok:['ok','✅ Bien'], warn:['warn','⚠️ Atención'], crit:['crit','🚨 Urgente']}[s.state];
+    const dk = dbKeyOf(p);
     return `
     <div class="card">
       <div class="card-photo">
@@ -450,7 +476,7 @@ function render(){
       </div>
       <div class="card-top">
         <div>
-          <h3>${esc(p.name)}</h3>
+          <h3>${esc(p.name)}${dk ? ` <button class="src-link" title="Ficha completa de cuidados" onclick="openFicha('${dk}')">📖</button>` : ""}</h3>
           ${p.species?`<div style="font-size:.78rem;color:var(--muted)">${esc(p.species)}</div>`:""}
         </div>
       </div>
@@ -597,6 +623,7 @@ document.getElementById("form").onsubmit = e=>{
     pruneEvery: Math.max(1, +document.getElementById("fPrune").value || 60),
     type: document.getElementById("fType").value,
     photo: fPhoto.value || "",
+    dbKey: matchDB(document.getElementById("fSpecies").value) || matchDB(document.getElementById("fName").value) || "",
   };
   if(id){
     Object.assign(plants.find(p=>p.id===id), data);
@@ -770,6 +797,196 @@ document.getElementById("btnSavePrune").onclick = ()=>{
 };
 document.getElementById("btnCancelPrune").onclick = ()=> document.getElementById("pruneBack").classList.remove("open");
 document.getElementById("pruneBack").onclick = e=>{ if(e.target.id === "pruneBack") e.target.classList.remove("open"); };
+
+// --- Base de datos de fichas de cuidados (RHS, Gardenia, ASPCA, Wikipedia) ---
+const PLANT_DB = {
+  monstera:{name:"Monstera", sci:"Monstera deliciosa", keys:["monstera","costilla","deliciosa"],
+    sun:"parcial", water:7, prune:60, type:"interior", hum:"60–80 %", temp:"18–30 °C",
+    soil:"Sustrato universal aireado con perlita; buen drenaje",
+    fert:"Abono líquido cada 4 semanas en primavera y verano",
+    desc:"Trepadora tropical de hojas grandes y características hendiduras. Prefiere luz brillante indirecta.",
+    pruneHow:"Retira hojas amarillas o dañadas cortando el pecíolo a ras del tallo. Poda tallos largos a 45° sobre un nudo para estimular ramificación.",
+    problems:"Puntas marrones: aire seco o exceso de sales. Hojas sin hendiduras: poca luz. Plagas: cochinilla y araña roja.",
+    toxic:"Tóxica si se ingiere (oxalatos de calcio). Mantener lejos de mascotas y niños."},
+  potus:{name:"Potus", sci:"Epipremnum aureum", keys:["potus","pothos","epipremnum","aureum"],
+    sun:"parcial", water:10, prune:90, type:"interior", hum:"50–70 %", temp:"17–30 °C",
+    soil:"Sustrato universal ligero; tolera casi cualquier suelo",
+    fert:"Cada 6–8 semanas en época de crecimiento",
+    desc:"Enredadera muy resistente, ideal para principiantes. Tolera sombra y riegos espaciados.",
+    pruneHow:"Corta tallos demasiado largos justo encima de una hoja para fomentar densidad. Las puntas cortadas enraízan fácil en agua.",
+    problems:"Hojas amarillas: exceso de riego. Poco variegado: luz insuficiente.",
+    toxic:"Tóxica si se ingiere (oxalatos)."},
+  sansevieria:{name:"Sansevieria", sci:"Dracaena trifasciata", keys:["sansevieria","trifasciata","espada","lengua","lengua de suegra"],
+    sun:"parcial", water:15, prune:180, type:"interior", hum:"40–50 %", temp:"16–29 °C",
+    soil:"Sustrato para cactus o suelto con mucho drenaje",
+    fert:"Cada 2–3 meses en verano",
+    desc:"Planta de hojas erectas en forma de espada, casi indestructible. Conviene el riego escaso.",
+    pruneHow:"Retira hojas dañadas cortando a ras de la base. Reproduce por división de rizomas en primavera.",
+    problems:"Hojas blandas o amarillentas: exceso de riego (riesgo de pudrición).",
+    toxic:"Tóxica si se ingiere."},
+  ficus:{name:"Ficus", sci:"Ficus lyrata / Ficus elastica", keys:["ficus","lyrata","elastica","goma","violín"],
+    sun:"parcial", water:10, prune:120, type:"interior", hum:"50–65 %", temp:"16–28 °C",
+    soil:"Sustrato rico y bien drenado",
+    fert:"Cada 4–6 semanas en primavera-verano",
+    desc:"Árbol de interior popular; el F. lyrata (hoja de violín) necesita luz brillante indirecta.",
+    pruneHow:"Poda en primavera. Corta ramas a 45° sobre un nudo; emite savia lechosa (no tóxica al tacto, irrita ligeramente).",
+    problems:"Pérdida de hojas: cambios bruscos de ubicación o frío. Puntas marrones: aire seco.",
+    toxic:"Ligeramente tóxico si se ingiere; savia irritante."},
+  aloe:{name:"Aloe vera", sci:"Aloe barbadensis miller", keys:["aloe","sabila","barbadensis"],
+    sun:"pleno", water:15, prune:365, type:"interior", hum:"40 %", temp:"13–30 °C",
+    soil:"Sustrato para cactus o suculentas",
+    fert:"1–2 veces al año, en primavera",
+    desc:"Suculenta medicinal de hojas carnosas; necesita sol directo y riegos muy espaciados.",
+    pruneHow:"Corta hojas externas maduras a ras de la base con cuchillo limpio cuando las uses. Retira retoños para reproducir.",
+    problems:"Hojas blandas/marrón: exceso de agua. Pálida: le falta sol.",
+    toxic:"El gel es comestible/aplicable; la corteza amarilla (aloina) es irritante."},
+  suculenta:{name:"Suculenta / Cactus", sci:"Familia Cactaceae / Crassulaceae", keys:["cactus","suculenta","crasa","echinocactus","echeveria"],
+    sun:"pleno", water:15, prune:180, type:"exterior", hum:"30–40 %", temp:"10–35 °C",
+    soil:"Sustrato mineral, muy drenado (arena + perlita)",
+    fert:"Una vez al año en primavera",
+    desc:"Plantas de agua almacenada en tejidos carnosos. Riego escaso y mucho sol.",
+    pruneHow:"Generalmente no requieren poda; retira hojas secas con pinza y esquejes dañados con corte limpio que deje callosar 2–3 días.",
+    problems:"Estiramiento (etiolación): falta de sol. Podredumbre: exceso de riego.",
+    toxic:"La mayoría no tóxicas; verificar especie concreta (ASPCA)."},
+  helecho:{name:"Helecho", sci:"Nephrolepis exaltata", keys:["helecho","nephrolepis","exaltata"],
+    sun:"sombra", water:3, prune:45, type:"interior", hum:"60–80 %", temp:"15–26 °C",
+    soil:"Sustrato rico en materia orgánica, húmedo pero drenado",
+    fert:"Cada 4 semanas en primavera-verano, diluido",
+    desc:"Planta de sombra que ama la humedad; ideal para baños con luz indirecta.",
+    pruneHow:"Corta frondas amarillentas o secas a ras del rizoma con tijeras limpias.",
+    problems:"Puntas marrones: aire seco. En general suelen ser de las plantas más sensibles a la sequedad ambiental.",
+    toxic:"No tóxico (helechos de interior comunes)."},
+  espatifilo:{name:"Cuna de Moisés", sci:"Spathiphyllum wallisii", keys:["espatifilo","cuna","moises","moisés","peace","spathiphyllum"],
+    sun:"sombra", water:5, prune:60, type:"interior", hum:"50–70 %", temp:"16–27 °C",
+    soil:"Sustrato universal con turba, húmedo",
+    fert:"Cada 6 semanas en primavera-verano",
+    desc:"Conocido como 'planta de la paz'; florece en sombra y avisa plegando hojas cuando tiene sed.",
+    pruneHow:"Corta flores marchitas y hojas amarillas a ras del suelo. Divide la mata en primavera para reproducir.",
+    problems:"Plegado de hojas: falta de agua. Puntas marrones: agua con mucha cal.",
+    toxic:"Tóxica si se ingiere (oxalatos)."},
+  cinta:{name:"Cinta / Malamadre", sci:"Chlorophytum comosum", keys:["cinta","malamadre","chlorophytum","araña"],
+    sun:"parcial", water:7, prune:90, type:"interior", hum:"40–60 %", temp:"12–28 °C",
+    soil:"Sustrato universal; tolera distintos suelos",
+    fert:"Cada 4 semanas en primavera-verano",
+    desc:"Muy resistente y prolífica; produce retoños colgantes que enraízan con facilidad.",
+    pruneHow:"Retira hojas secas y amarillentas a la base. Poda los 'hijos' para reproducir en agua o tierra.",
+    problems:"Puntas marrones: aire seco o exceso de sol. Poco crecimiento: falta de luz.",
+    toxic:"No tóxica; segura con mascotas."},
+  orquidea:{name:"Orquídea", sci:"Phalaenopsis spp.", keys:["orquidea","orquídea","phalaenopsis"],
+    sun:"parcial", water:10, prune:120, type:"interior", hum:"50–70 %", temp:"18–28 °C",
+    soil:"Corteza de pino o musgo especial para orquídeas",
+    fert:"Abono específico cada 2–4 semanas en floración/crecimiento",
+    desc:"La orquídea de interior más común; florece meses con luz indirecta y riego moderado.",
+    pruneHow:"Tras caer las flores, corta el tallo floral a 2–3 cm sobre el segundo nudo; puede rebrotar. Retira raíces muertas (marrones, huecas).",
+    problems:"Raíces negras: exceso de riego. No florece: poca luz o falta de fertilización.",
+    toxic:"No tóxica."},
+  rosa:{name:"Rosa", sci:"Rosa spp.", keys:["rosa","rosal","rose"],
+    sun:"pleno", water:4, prune:30, type:"exterior", hum:"50–70 %", temp:"5–30 °C",
+    soil:"Suelo fértil, fresco y bien drenado; aireado",
+    fert:"Abono específico para rosales cada 4–6 semanas en época vegetativa",
+    desc:"Arbusto de exterior que necesita sol pleno; la poda regular es clave para su floración.",
+    pruneHow:"Poda en febrero-marzo: retira ramas muertas, débiles o cruzadas. Corta siempre a 45° sobre un brote externo, a ~5 mm del nudo.",
+    problems:"Pulgón, mosca blanca y roya. Tratar con jabón potásico o azufre.",
+    toxic:"No tóxica; espinas mecánicas."},
+  lavanda:{name:"Lavanda", sci:"Lavandula angustifolia", keys:["lavanda","lavandula"],
+    sun:"pleno", water:10, prune:60, type:"exterior", hum:"40–50 %", temp:"-5–35 °C",
+    soil:"Suelo pobre, arenoso y muy drenado; no tolera encharcamiento",
+    fert:"Casi no necesita; una vez al año en suelos pobres",
+    desc:"Arbusto aromático mediterráneo; cuanto más sol, más aroma.",
+    pruneHow:"Poda ligera después de la floración: recorta hasta 1/3 de la rama nueva, nunca cortes a madera vieja sin hojas (no rebrota bien).",
+    problems:"Pudrición de raíz por exceso de riego/humedad. Se estira si le falta sol.",
+    toxic:"No tóxica; esencial usada en cosmética."},
+  albahaca:{name:"Albahaca", sci:"Ocimum basilicum", keys:["albahaca","basil","ocimum"],
+    sun:"pleno", water:2, prune:15, type:"exterior", hum:"50–70 %", temp:"15–30 °C",
+    soil:"Suelo rico y fresco, drenado",
+    fert:"Cada 2–3 semanas en crecimiento",
+    desc:"Aromática anual muy utilizada en cocina; pinzar frecuentemente la mantiene frondosa.",
+    pruneHow:"Pellizca o corta siempre sobre un par de hojas nuevas (nudo) para que ramifique; elimina varas florales al aparecer.",
+    problems:"Oídio (hojas blancas): exceso de humedad nocturna. Marchitez: falta de agua (es muy bebedora en verano).",
+    toxic:"Comestible."},
+  tomate:{name:"Tomate", sci:"Solanum lycopersicum", keys:["tomate","jitomate","lycopersicum"],
+    sun:"pleno", water:2, prune:14, type:"exterior", hum:"50–70 %", temp:"18–30 °C",
+    soil:"Suelo fértil y drenado; riego regular para evitar rajado de frutos",
+    fert:"Abono rico en potasio y calcio cada 2 semanas en fructificación",
+    desc:"Hortaliza de sol pleno; requiere tutores y poda de brotes axilares (chupones).",
+    pruneHow:"Elimina los brotes axilares (chupones) que crecen entre tallo y rama cuando miden 5–8 cm. Retira hojas bajas que toquen el suelo.",
+    problems:"Rajado de frutos por riegos irregulares. Ataque de mosca blanca y pulgón.",
+    toxic:"Fruto comestible; hojas y tallos tóxicos (solanina)."}
+};
+
+const norm = s => (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+function matchDB(str){
+  const q = norm(str).trim();
+  if(q.length < 3) return null;
+  for(const k in PLANT_DB){
+    const d = PLANT_DB[k];
+    if(norm(d.name).includes(q) || norm(d.sci).includes(q) || d.keys.some(x=>q.includes(x))) return k;
+  }
+  return null;
+}
+function dbKeyOf(p){
+  return p.dbKey && PLANT_DB[p.dbKey] ? p.dbKey
+       : matchDB(p.species) || matchDB(p.name);
+}
+
+// Botones galería / cámara (añadir-editar planta)
+document.getElementById("btnGallery").onclick = ()=> document.getElementById("fPhotoFile").click();
+document.getElementById("btnCamera").onclick  = ()=> document.getElementById("fCameraFile").click();
+document.getElementById("fCameraFile").onchange = e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  compressImage(file, src=>{ fPhoto.value = src; setPhotoPreview(src); });
+};
+
+// Autocompletar cuidados desde la ficha al escribir el nombre
+function autofillFromDB(k){
+  const d = PLANT_DB[k];
+  document.getElementById("fSun").value = d.sun;
+  document.getElementById("fWater").value = d.water;
+  document.getElementById("fPrune").value = d.prune;
+  document.getElementById("fType").value = d.type;
+  if(!document.getElementById("fSpecies").value) document.getElementById("fSpecies").value = d.sci;
+}
+document.getElementById("fName").addEventListener("input", ()=>{
+  const k = matchDB(document.getElementById("fName").value);
+  const note = document.getElementById("dbNote");
+  if(k){
+    autofillFromDB(k);
+    note.textContent = `📖 Ficha encontrada: ${PLANT_DB[k].name} — cuidados aplicados automáticamente`;
+  } else note.textContent = "";
+});
+
+// Modal ficha completa + bibliografía
+window.openFicha = k=>{
+  const d = PLANT_DB[k];
+  if(!d) return;
+  const q = encodeURIComponent(d.sci);
+  const srcs = [
+    ["RHS — Real Sociedad de Horticultura (Reino Unido)", `https://www.rhs.org.uk/search?query=${q}`],
+    ["Gardenia.net — Guías de jardinería", `https://www.gardenia.net/search?q=${q}`],
+    ["Wikipedia", `https://es.wikipedia.org/w/index.php?search=${q}`],
+    ["ASPCA — Plantas tóxicas y seguras para mascotas", `https://www.aspca.org/pet-care/animal-poison-control/toxic-and-non-toxic-plants`]
+  ];
+  document.getElementById("fichaBody").innerHTML = `
+    <h2>📖 ${d.name}</h2>
+    <div class="sci">${d.sci}</div>
+    <p>${d.desc}</p>
+    <h4>☀️ Luz</h4><p>${({sombra:"Sombra o luz indirecta",parcial:"Luz indirecta brillante / sol parcial",pleno:"Sol pleno (mín. 5–6 h directas)"})[d.sun]}</p>
+    <h4>💧 Riego</h4><p>Cada ~${d.water} días (ajústalo a tu clima y estación)</p>
+    <h4>💨 Humedad</h4><p>${d.hum}</p>
+    <h4>🌡️ Temperatura</h4><p>${d.temp}</p>
+    <h4>🪴 Sustrato</h4><p>${d.soil}</p>
+    <h4>🧪 Abonado</h4><p>${d.fert}</p>
+    <h4>✂️ Poda</h4><p>${d.pruneHow}</p>
+    <h4>⚠️ Problemas frecuentes</h4><p>${d.problems}</p>
+    <h4>🐾 Toxicidad</h4><p>${d.toxic}</p>
+    <h4>🔗 Bibliografía y fuentes</h4>
+    <ul>${srcs.map(s=>`<li><a href="${s[1]}" target="_blank" rel="noopener">${s[0]}</a></li>`).join("")}</ul>
+    <button class="btn btn-ghost" id="btnCloseFicha" style="width:100%;margin-top:10px">Cerrar</button>`;
+  document.getElementById("fichaBack").classList.add("open");
+  document.getElementById("btnCloseFicha").onclick = ()=> document.getElementById("fichaBack").classList.remove("open");
+};
+document.getElementById("fichaBack").onclick = e=>{ if(e.target.id === "fichaBack") e.target.classList.remove("open"); };
 
 // --- PWA: service worker para instalar en Android/iPhone ---
 if("serviceWorker" in navigator){

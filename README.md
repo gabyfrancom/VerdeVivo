@@ -8,7 +8,9 @@
 - **Registro de riegos** — botón "💧 Regada" que guarda la fecha y hora del móvil y lleva un historial por planta.
 - **Alertas del próximo riego** — banner en pantalla y notificación del navegador cuando toca regar (verifica cada minuto según la fecha/hora del dispositivo).
 - **Clima en tiempo real** — temperatura ambiente, humedad relativa y presión atmosférica de tu ubicación exacta, vía [Open-Meteo](https://open-meteo.com/) (gratis, sin API key) y la geolocalización del móvil.
-- **Fotos** — sube fotos de tus plantas (se comprimen automáticamente) o usa las imágenes de ejemplo.
+- **Fotos** — sube fotos desde la galería o toma una foto al momento con la cámara (se comprimen automáticamente).
+- **Fichas de cuidados integradas** — base de datos de 14 plantas comunes (recopilada de RHS, Gardenia, ASPCA y Wikipedia). Al escribir el nombre, la app detecta la especie y rellena sol, riego y poda automáticamente.
+- **📖 Botón de ficha** junto al nombre: descripción, luz, riego, humedad, temperatura, sustrato, abonado, cómo podar, problemas frecuentes, toxicidad y enlaces a bibliografía.
 - **Ubicaciones y sol** — asigna cada planta a una ubicación (salón, balcón, jardín...) y su necesidad de sol: sombra, sol parcial o sol pleno.
 - **Modo oscuro** — claro/oscuro con detección automática de la preferencia del sistema.
 - **Instalable** — al ser PWA se instala como app nativa desde el navegador, funciona offline y guarda todos los datos en el dispositivo (localStorage).
