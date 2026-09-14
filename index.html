@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VerdeVivo · Cuidado de Plantas</title>
+<meta name="theme-color" content="#2b5a2d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="VerdeVivo">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  :root{
+    --bg:#f4f7f2; --card:#ffffff; --ink:#22301f; --muted:#6b7a66;
+    --green:#3d7a3f; --green-dark:#2b5a2d; --green-light:#e3f0e2;
+    --amber:#c98a1b; --amber-light:#fdf0da;
+    --red:#b8452e; --red-light:#fbe6e1;
+    --blue:#2f6f8f; --blue-light:#e2eef4;
+    --shadow:0 4px 18px rgba(34,48,31,.10);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    background:var(--bg); color:var(--ink); min-height:100vh;
+  }
+  header{
+    background:linear-gradient(135deg,var(--green-dark),var(--green));
+    color:#fff; padding:28px 20px 60px;
+  }
+  header .wrap, main{max-width:980px;margin:0 auto}
+  header h1{font-size:1.6rem;display:flex;align-items:center;gap:10px}
+  header p{opacity:.85;margin-top:6px;font-size:.95rem}
+  .wrap{padding:0 16px}
+
+  /* Stats */
+  .stats{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+  .stat{
+    background:rgba(255,255,255,.14);backdrop-filter:blur(4px);
+    border:1px solid rgba(255,255,255,.25);border-radius:14px;
+    padding:10px 16px;min-width:110px;
+  }
+  .stat b{display:block;font-size:1.4rem}
+  .stat span{font-size:.75rem;opacity:.85;text-transform:uppercase;letter-spacing:.5px}
+
+  main{margin-top:-36px;padding:0 16px 80px}
+
+  /* Toolbar */
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
+  .toolbar select,.toolbar input{
+    padding:10px 12px;border:1px solid #d7e0d2;border-radius:12px;
+    font-size:.9rem;background:#fff;outline:none;
+  }
+  .btn{
+    border:none;cursor:pointer;border-radius:12px;padding:11px 18px;
+    font-size:.92rem;font-weight:600;transition:transform .15s, box-shadow .15s;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:var(--green);color:#fff;box-shadow:var(--shadow)}
+  .btn-primary:hover{background:var(--green-dark)}
+  .btn-ghost{background:#fff;color:var(--green-dark);border:1px solid #d7e0d2}
+
+  /* Cards */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+  .card{
+    background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:18px;display:flex;flex-direction:column;gap:12px;position:relative;
+    animation:pop .3s ease;
+  }
+  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .card h3{font-size:1.1rem}
+  .badge{
+    font-size:.7rem;font-weight:700;padding:4px 10px;border-radius:99px;
+    text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;
+  }
+  .badge.ok{background:var(--green-light);color:var(--green-dark)}
+  .badge.warn{background:var(--amber-light);color:var(--amber)}
+  .badge.crit{background:var(--red-light);color:var(--red)}
+  .loc{font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:5px}
+
+  .needs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .need{
+    border-radius:12px;padding:8px 6px;text-align:center;font-size:.72rem;
+    border:1px solid transparent;
+  }
+  .need b{display:block;font-size:.95rem;margin-top:2px}
+  .need.sun{background:var(--amber-light);border-color:#f0dcb8;color:#8a5c0e}
+  .need.water{background:var(--blue-light);border-color:#c7dfeb;color:#1e5069}
+  .need.prune{background:#efe9f7;border-color:#ddd2ee;color:#5b3e86}
+
+  .bar-row{display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--muted)}
+  .bar-row label{width:88px;flex-shrink:0}
+  .bar{flex:1;height:8px;background:#e9efe6;border-radius:99px;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:99px;transition:width .5s ease}
+  .i-ok{background:var(--green)}
+  .i-warn{background:var(--amber)}
+  .i-crit{background:var(--red)}
+
+  .card-actions{display:flex;gap:8px;margin-top:2px}
+  .card-actions .btn{flex:1;padding:8px;font-size:.8rem}
+  .btn-act{background:var(--green-light);color:var(--green-dark)}
+  .btn-del{background:#f6e9e6;color:var(--red);flex:0 0 auto !important;padding:8px 12px !important}
+
+  /* Foto de la planta */
+  .card-photo{
+    height:150px;border-radius:12px;overflow:hidden;position:relative;
+    background:linear-gradient(135deg,var(--green-light),#cfe3cc);
+  }
+  .card-photo img{width:100%;height:100%;object-fit:cover;display:block}
+  .card-photo .ph{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:3rem;
+  }
+  .card-photo .badge{position:absolute;top:8px;right:8px;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+  .btn-edit{position:absolute;top:8px;left:8px;background:rgba(255,255,255,.9);color:var(--ink);padding:5px 10px;font-size:.75rem}
+
+  /* Subida de foto */
+  .photo-box{
+    border:2px dashed #b9ccb4;border-radius:12px;padding:14px;text-align:center;
+    cursor:pointer;transition:background .15s;font-size:.85rem;color:var(--muted);
+  }
+  .photo-box:hover{background:var(--green-light)}
+  .photo-box img{
+    max-width:100%;max-height:130px;border-radius:10px;display:block;margin:0 auto 8px;
+  }
+
+  /* Modal */
+  .modal-back{
+    position:fixed;inset:0;background:rgba(20,30,18,.5);
+    display:none;align-items:center;justify-content:center;padding:16px;z-index:50;
+  }
+  .modal-back.open{display:flex}
+  .modal{
+    background:#fff;border-radius:20px;padding:24px;width:100%;max-width:440px;
+    max-height:90vh;overflow-y:auto;animation:pop .25s ease;
+  }
+  .modal h2{font-size:1.2rem;margin-bottom:16px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:.8rem;font-weight:600;color:var(--muted);margin-bottom:5px}
+  .field input,.field select{
+    width:100%;padding:10px 12px;border:1px solid #d7e0d2;border-radius:10px;
+    font-size:.9rem;outline:none;font-family:inherit;
+  }
+  .field input:focus,.field select:focus{border-color:var(--green)}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .modal .btn{width:100%;margin-top:6px}
+
+  .empty{
+    text-align:center;color:var(--muted);padding:60px 20px;
+    background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);
+  }
+  .empty .big{font-size:3rem;margin-bottom:10px}
+
+  .legend{
+    display:flex;gap:14px;flex-wrap:wrap;font-size:.75rem;color:var(--muted);margin-bottom:14px;
+  }
+  .legend span{display:flex;align-items:center;gap:5px}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+  /* Botón de tema */
+  #themeBtn{
+    margin-left:auto;background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3);
+    font-size:1rem;padding:8px 14px;border-radius:99px;
+  }
+  #themeBtn:hover{background:rgba(255,255,255,.28)}
+
+  /* ===== MODO OSCURO ===== */
+  body.dark{
+    --bg:#131a13; --card:#1d261c; --ink:#e6efe4; --muted:#9cb096;
+    --green-light:#26351f; --blue-light:#1e3038; --amber-light:#3a2e14;
+    --shadow:0 4px 18px rgba(0,0,0,.45);
+  }
+  body.dark .toolbar select, body.dark .toolbar input,
+  body.dark .modal input, body.dark .modal select{
+    background:#26301f;border-color:#3a4a35;color:var(--ink);
+  }
+  body.dark .modal, body.dark .empty{background:var(--card);color:var(--ink)}
+  body.dark .btn-ghost{background:#26301f;color:var(--ink);border-color:#3a4a35}
+  body.dark .bar{background:#2c382a}
+  body.dark .btn-act{background:#2c4023;color:#bfe3b8}
+  body.dark .btn-del{background:#3a211b;color:#f0a494}
+  body.dark .photo-box{border-color:#4a5c42;color:var(--muted)}
+  body.dark .photo-box:hover{background:#26351f}
+  body.dark .need.sun{color:#e8b563}
+  body.dark .need.water{color:#7fc4e8}
+  body.dark .need.prune{color:#c3a6ef}
+  body.dark ::placeholder{color:#7d8c78}
+  body.dark .card-photo .ph{background:linear-gradient(135deg,#26351f,#1c2918)}
+  body.dark .weather{background:var(--card);border-color:#3a4a35}
+  body.dark .alert-banner{background:#3a1f18;border-color:#5c3128;color:#f5c9bd}
+
+  /* Clima */
+  .weather{
+    background:var(--card);border:1px solid #d7e0d2;border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:14px 18px;margin-bottom:16px;
+    display:flex;align-items:center;gap:18px;flex-wrap:wrap;font-size:.9rem;
+  }
+  .weather b{font-size:1.2rem}
+  .weather .w-item{display:flex;align-items:center;gap:6px}
+  .weather .w-city{width:100%;font-size:.75rem;color:var(--muted);margin-bottom:2px}
+
+  /* Alerta de riego */
+  .alert-banner{
+    background:var(--red-light);border:1px solid #ecc4b8;color:var(--red);
+    border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:.9rem;font-weight:600;
+  }
+  .btn-notif{background:var(--red);color:#fff;padding:8px 14px;font-size:.8rem}
+
+  .hist{font-size:.75rem;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>🌿 VerdeVivo <button class="btn" id="themeBtn" title="Cambiar tema">🌙</button></h1>
+    <p>Controla el estado de tus plantas: sol, agua, poda y ubicación.</p>
+    <div class="stats">
+      <div class="stat"><b id="stTotal">0</b><span>Plantas</span></div>
+      <div class="stat"><b id="stOk">0</b><span>Bien</span></div>
+      <div class="stat"><b id="stWarn">0</b><span>Atención</span></div>
+      <div class="stat"><b id="stCrit">0</b><span>Urgente</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--green)"></i> Al día</span>
+    <span><i class="dot" style="background:var(--amber)"></i> Próximo (≥80%)</span>
+    <span><i class="dot" style="background:var(--red)"></i> Vencido</span>
+  </div>
+
+  <div class="toolbar">
+    <select id="filterLoc"><option value="">📍 Todas las ubicaciones</option></select>
+    <select id="filterState">
+      <option value="">Todos los estados</option>
+      <option value="ok">✅ Bien</option>
+      <option value="warn">⚠️ Atención</option>
+      <option value="crit">🚨 Urgente</option>
+    </select>
+    <input type="search" id="search" placeholder="🔍 Buscar planta..." style="flex:1;min-width:150px">
+    <button class="btn btn-primary" id="btnAdd">➕ Añadir planta</button>
+  </div>
+
+  <div class="alert-banner" id="alertBanner" style="display:none">
+    <span id="alertText"></span>
+    <button class="btn btn-notif" id="btnNotif" style="display:none">🔔 Activar alertas</button>
+  </div>
+
+  <div class="weather" id="weather">
+    <span>🌦️ Cargando datos meteorológicos...</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none">
+    <div class="big">🪴</div>
+    <h3>No hay plantas todavía</h3>
+    <p>Añade tu primera planta para empezar a cuidarla.</p>
+  </div>
+</main>
+
+<!-- Modal -->
+<div class="modal-back" id="modalBack">
+  <div class="modal">
+    <h2 id="modalTitle">➕ Añadir planta</h2>
+    <form id="form">
+      <input type="hidden" id="fId">
+      <input type="hidden" id="fPhoto">
+      <div class="field">
+        <label>📷 Foto de tu planta</label>
+        <div class="photo-box" id="photoBox">
+          <span id="photoHint">Toca para subir una foto 🌱</span>
+        </div>
+        <input type="file" id="fPhotoFile" accept="image/*" style="display:none">
+      </div>
+      <div class="field">
+        <label>Nombre de la planta *</label>
+        <input id="fName" required placeholder="Ej: Monstera del salón">
+      </div>
+      <div class="field">
+        <label>Especie (opcional)</label>
+        <input id="fSpecies" placeholder="Ej: Monstera deliciosa">
+      </div>
+      <div class="field">
+        <label>Ubicación *</label>
+        <select id="fLoc"></select>
+      </div>
+      <div class="field">
+        <label>O escribe una ubicación nueva</label>
+        <input id="fLocCustom" placeholder="Ej: Balcón, Invernadero...">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>☀️ Necesidad de sol</label>
+          <select id="fSun">
+            <option value="sombra">Sombra</option>
+            <option value="parcial" selected>Sol parcial</option>
+            <option value="pleno">Sol pleno</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>💧 Riego cada (días)</label>
+          <input id="fWater" type="number" min="1" max="60" value="7">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>✂️ Poda cada (días)</label>
+          <input id="fPrune" type="number" min="7" max="365" value="60">
+        </div>
+        <div class="field">
+          <label>🌱 Tipo</label>
+          <select id="fType">
+            <option value="interior">Interior</option>
+            <option value="exterior">Exterior</option>
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">💾 Guardar planta</button>
+      <button type="button" class="btn btn-ghost" id="btnCancel" style="margin-top:8px">Cancelar</button>
+    </form>
+  </div>
+</div>
+
+<script>
+const LOCATIONS = ["Salón","Cocina","Dormitorio","Balcón","Jardín","Terraza","Oficina"];
+const SUN_LABEL = {sombra:"Sombra", parcial:"Sol parcial", pleno:"Sol pleno"};
+const SUN_ICON  = {sombra:"🌑", parcial:"⛅", pleno:"☀️"};
+const LS_KEY = "verdevivo_plants_v1";
+
+let plants = load();
+
+function load(){
+  try{ return JSON.parse(localStorage.getItem(LS_KEY)) || seed(); }
+  catch(e){ return seed(); }
+}
+function seed(){
+  const now = Date.now(), d = 86400000;
+  return [
+    {id:uid(), name:"Monstera", species:"Monstera deliciosa", loc:"Salón", sun:"parcial", waterEvery:7, pruneEvery:60, type:"interior", lastWater:now-6*d, lastPrune:now-20*d, photo:"img/monstera.jpg"},
+    {id:uid(), name:"Cactus", species:"Echinocactus", loc:"Balcón", sun:"pleno", waterEvery:15, pruneEvery:180, type:"exterior", lastWater:now-16*d, lastPrune:now-100*d, photo:"img/cactus.jpg"},
+    {id:uid(), name:"Helecho", species:"Nephrolepis", loc:"Dormitorio", sun:"sombra", waterEvery:3, pruneEvery:45, type:"interior", lastWater:now-4*d, lastPrune:now-30*d, photo:"img/helecho.jpg"},
+  ];
+}
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(plants)); }
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function daysSince(t){ return (Date.now()-t)/86400000; }
+function pct(elapsed, every){ return Math.min(100, Math.round(elapsed/every*100)); }
+
+function plantStatus(p){
+  const w = pct(daysSince(p.lastWater), p.waterEvery);
+  const r = pct(daysSince(p.lastPrune), p.pruneEvery);
+  const worst = Math.max(w, r);
+  if (worst >= 100) return {state:"crit", w, r};
+  if (worst >= 80)  return {state:"warn", w, r};
+  return {state:"ok", w, r};
+}
+
+function barClass(p){ return p>=100 ? "i-crit" : p>=80 ? "i-warn" : "i-ok"; }
+
+function render(){
+  const q = document.getElementById("search").value.toLowerCase();
+  const fl = document.getElementById("filterLoc").value;
+  const fs = document.getElementById("filterState").value;
+
+  const locs = [...new Set(plants.map(p=>p.loc))].sort();
+  const sel = document.getElementById("filterLoc");
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">📍 Todas las ubicaciones</option>' +
+    locs.map(l=>`<option ${l===cur?"selected":""}>${esc(l)}</option>`).join("");
+
+  const list = plants.filter(p =>
+    (!fl || p.loc===fl) &&
+    (!fs || plantStatus(p).state===fs) &&
+    (!q || p.name.toLowerCase().includes(q) || (p.species||"").toLowerCase().includes(q))
+  );
+
+  const grid = document.getElementById("grid");
+  document.getElementById("empty").style.display = list.length ? "none" : "block";
+  grid.innerHTML = list.map(p=>{
+    const s = plantStatus(p);
+    const badge = {ok:['ok','✅ Bien'], warn:['warn','⚠️ Atención'], crit:['crit','🚨 Urgente']}[s.state];
+    return `
+    <div class="card">
+      <div class="card-photo">
+        ${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}" loading="lazy">` : `<div class="ph">🪴</div>`}
+        <span class="badge ${badge[0]}">${badge[1]}</span>
+        <button class="btn btn-edit" onclick="editPlant('${p.id}')">✏️ Editar</button>
+      </div>
+      <div class="card-top">
+        <div>
+          <h3>${esc(p.name)}</h3>
+          ${p.species?`<div style="font-size:.78rem;color:var(--muted)">${esc(p.species)}</div>`:""}
+        </div>
+      </div>
+      <div class="loc">📍 ${esc(p.loc)} · ${p.type==="interior"?"Interior":"Exterior"}</div>
+      <div class="needs">
+        <div class="need sun">${SUN_ICON[p.sun]} Sol<b>${SUN_LABEL[p.sun]}</b></div>
+        <div class="need water">💧 Riego<b>cada ${p.waterEvery} d</b></div>
+        <div class="need prune">✂️ Poda<b>cada ${p.pruneEvery} d</b></div>
+      </div>
+      <div class="bar-row"><label>💧 Agua</label><div class="bar"><i class="${barClass(s.w)}" style="width:${s.w}%"></i></div><span>${s.w}%</span></div>
+      <div class="bar-row"><label>✂️ Poda</label><div class="bar"><i class="${barClass(s.r)}" style="width:${s.r}%"></i></div><span>${s.r}%</span></div>
+      <div class="hist">💧 Regada ${fmtDate(p.lastWater)} · ${p.history ? p.history.length : 0} riegos registrados</div>
+      <div class="card-actions">
+        <button class="btn btn-act" onclick="markDone('${p.id}','water')">💧 Regada</button>
+        <button class="btn btn-act" onclick="markDone('${p.id}','prune')">✂️ Podada</button>
+        <button class="btn btn-del" onclick="delPlant('${p.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  // Stats
+  const counts = {ok:0, warn:0, crit:0};
+  plants.forEach(p=>counts[plantStatus(p).state]++);
+  document.getElementById("stTotal").textContent = plants.length;
+  document.getElementById("stOk").textContent = counts.ok;
+  document.getElementById("stWarn").textContent = counts.warn;
+  document.getElementById("stCrit").textContent = counts.crit;
+}
+
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+window.markDone = (id, kind)=>{
+  const p = plants.find(x=>x.id===id);
+  if(!p) return;
+  if(kind==="water"){
+    p.lastWater = Date.now();
+    p.history = p.history || [];
+    p.history.push(Date.now());
+  } else {
+    p.lastPrune = Date.now();
+  }
+  save(); render(); checkAlerts();
+};
+window.delPlant = id=>{
+  if(!confirm("¿Eliminar esta planta?")) return;
+  plants = plants.filter(p=>p.id!==id);
+  save(); render();
+};
+
+// Modal
+const modalBack = document.getElementById("modalBack");
+const fLoc = document.getElementById("fLoc");
+function fillLocSelect(){
+  const customs = [...new Set(plants.map(p=>p.loc))];
+  const all = [...new Set([...LOCATIONS, ...customs])].sort();
+  fLoc.innerHTML = all.map(l=>`<option>${esc(l)}</option>`).join("");
+}
+
+// --- Foto: subir y comprimir ---
+const photoBox  = document.getElementById("photoBox");
+const photoFile = document.getElementById("fPhotoFile");
+const fPhoto    = document.getElementById("fPhoto");
+
+function setPhotoPreview(src){
+  photoBox.innerHTML = src
+    ? `<img src="${src}" alt=""><span>Toca para cambiar la foto 📷</span>`
+    : `<span id="photoHint">Toca para subir una foto 🌱</span>`;
+}
+photoBox.onclick = ()=> photoFile.click();
+photoFile.onchange = ()=>{
+  const file = photoFile.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const img = new Image();
+    img.onload = ()=>{
+      // Comprimir: máx. 800px de lado, JPEG 80%
+      const MAX = 800;
+      let {width:w, height:h} = img;
+      if(w > MAX || h > MAX){
+        const k = MAX / Math.max(w, h);
+        w = Math.round(w*k); h = Math.round(h*k);
+      }
+      const cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      cv.getContext("2d").drawImage(img, 0, 0, w, h);
+      fPhoto.value = cv.toDataURL("image/jpeg", 0.8);
+      setPhotoPreview(fPhoto.value);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
+document.getElementById("btnAdd").onclick = ()=>{
+  document.getElementById("form").reset();
+  document.getElementById("fId").value = "";
+  fPhoto.value = "";
+  setPhotoPreview("");
+  document.getElementById("modalTitle").textContent = "➕ Añadir planta";
+  fillLocSelect();
+  modalBack.classList.add("open");
+};
+
+window.editPlant = id=>{
+  const p = plants.find(x=>x.id===id);
+  if(!p) return;
+  document.getElementById("form").reset();
+  fillLocSelect();
+  document.getElementById("fId").value = p.id;
+  fPhoto.value = p.photo || "";
+  setPhotoPreview(p.photo || "");
+  document.getElementById("fName").value = p.name;
+  document.getElementById("fSpecies").value = p.species || "";
+  if([...fLoc.options].some(o=>o.value===p.loc)) fLoc.value = p.loc;
+  else document.getElementById("fLocCustom").value = p.loc;
+  document.getElementById("fSun").value = p.sun;
+  document.getElementById("fWater").value = p.waterEvery;
+  document.getElementById("fPrune").value = p.pruneEvery;
+  document.getElementById("fType").value = p.type;
+  document.getElementById("modalTitle").textContent = "✏️ Editar planta";
+  modalBack.classList.add("open");
+};
+document.getElementById("btnCancel").onclick = ()=> modalBack.classList.remove("open");
+modalBack.onclick = e=>{ if(e.target===modalBack) modalBack.classList.remove("open"); };
+
+document.getElementById("form").onsubmit = e=>{
+  e.preventDefault();
+  const custom = document.getElementById("fLocCustom").value.trim();
+  const loc = custom || fLoc.value;
+  const id = document.getElementById("fId").value;
+  const data = {
+    name: document.getElementById("fName").value.trim(),
+    species: document.getElementById("fSpecies").value.trim(),
+    loc,
+    sun: document.getElementById("fSun").value,
+    waterEvery: Math.max(1, +document.getElementById("fWater").value || 7),
+    pruneEvery: Math.max(1, +document.getElementById("fPrune").value || 60),
+    type: document.getElementById("fType").value,
+    photo: fPhoto.value || "",
+  };
+  if(id){
+    Object.assign(plants.find(p=>p.id===id), data);
+  } else {
+    plants.push({id:uid(), lastWater:Date.now(), lastPrune:Date.now(), ...data});
+  }
+  save(); render();
+  modalBack.classList.remove("open");
+};
+
+// Filters
+["filterLoc","filterState"].forEach(id=> document.getElementById(id).onchange = render);
+document.getElementById("search").oninput = render;
+
+// --- Modo oscuro ---
+const themeBtn = document.getElementById("themeBtn");
+function applyTheme(t){
+  document.body.classList.toggle("dark", t === "dark");
+  themeBtn.textContent = t === "dark" ? "☀️" : "🌙";
+  localStorage.setItem("vv_theme", t);
+}
+let theme = localStorage.getItem("vv_theme")
+  || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+applyTheme(theme);
+themeBtn.onclick = ()=> applyTheme(document.body.classList.contains("dark") ? "light" : "dark");
+
+// --- Utilidades de fecha ---
+function fmtDate(t){
+  return new Date(t).toLocaleDateString("es-ES", {day:"numeric", month:"short"});
+}
+
+// --- Alertas de riego (según fecha/hora del móvil) ---
+function checkAlerts(){
+  const due  = plants.filter(p=> daysSince(p.lastWater) >= p.waterEvery);
+  const soon = plants.filter(p=>{
+    const e = daysSince(p.lastWater);
+    return e < p.waterEvery && pct(e, p.waterEvery) >= 80;
+  });
+  const banner = document.getElementById("alertBanner");
+  const btn    = document.getElementById("btnNotif");
+  if(!due.length && !soon.length){ banner.style.display = "none"; return; }
+  let msg = "";
+  if(due.length)  msg += `🚨 Riego vencido: ${due.map(p=>p.name).join(", ")}. `;
+  if(soon.length) msg += `⏰ Próximo riego en breve: ${soon.map(p=>p.name).join(", ")}.`;
+  document.getElementById("alertText").textContent = msg;
+  banner.style.display = "flex";
+  if("Notification" in window){
+    if(Notification.permission === "granted"){
+      btn.style.display = "none";
+      const key = due.map(p=>p.id).join();
+      if(due.length && localStorage.getItem("vv_notified") !== key){
+        try{
+          new Notification("VerdeVivo 🌿", {body:"Toca regar: " + due.map(p=>p.name).join(", "), icon:"icons/icon-192.png"});
+          localStorage.setItem("vv_notified", key);
+        }catch(e){}
+      }
+    } else if(Notification.permission !== "denied"){
+      btn.style.display = "inline-block";
+    }
+  }
+}
+document.getElementById("btnNotif").onclick = async ()=>{
+  await Notification.requestPermission();
+  checkAlerts();
+};
+setInterval(checkAlerts, 60000);
+
+// --- Clima: temperatura, humedad y presión (Open-Meteo, gratis, sin API key) ---
+const WEA_KEY = "vv_weather";
+function renderWeather(d){
+  document.getElementById("weather").innerHTML = `
+    <div class="w-item">🌡️<div>Temperatura<b> ${Math.round(d.temp)}°C</b></div></div>
+    <div class="w-item">💨<div>Humedad<b> ${Math.round(d.hum)}%</b></div></div>
+    <div class="w-item">📊<div>Presión<b> ${Math.round(d.pres)} hPa</b></div></div>
+    <button class="btn btn-ghost" id="btnRefresh" style="margin-left:auto;padding:6px 12px;font-size:.75rem">🔄 Actualizar</button>`;
+  document.getElementById("btnRefresh").onclick = ()=> loadWeather(true);
+}
+async function loadWeather(force){
+  const box = document.getElementById("weather");
+  try{
+    const cached = JSON.parse(localStorage.getItem(WEA_KEY) || "null");
+    if(!force && cached && Date.now()-cached.t < 30*60000){ renderWeather(cached.data); return; }
+    if(!navigator.geolocation){
+      box.innerHTML = "<span>⚠️ Tu navegador no permite acceder a la ubicación (necesaria para el clima).</span>";
+      return;
+    }
+    box.innerHTML = "<span>🌦️ Obteniendo tu ubicación...</span>";
+    navigator.geolocation.getCurrentPosition(async pos=>{
+      try{
+        const {latitude:lat, longitude:lon} = pos.coords;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,surface_pressure`;
+        const j = await (await fetch(url)).json();
+        const data = {temp:j.current.temperature_2m, hum:j.current.relative_humidity_2m, pres:j.current.surface_pressure};
+        localStorage.setItem(WEA_KEY, JSON.stringify({t:Date.now(), data}));
+        renderWeather(data);
+      }catch(e){
+        box.innerHTML = "<span>⚠️ No se pudo obtener el clima. Revisa tu conexión.</span>";
+      }
+    }, ()=>{
+      box.innerHTML = "<span>📍 Activa la ubicación del móvil para ver temperatura, humedad y presión de tu zona.</span>";
+    }, {timeout:10000});
+  }catch(e){}
+}
+loadWeather(false);
+
+// --- PWA: service worker para instalar en Android/iPhone ---
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+
+render();
+checkAlerts();
+</script>
+</body>
+</html>
