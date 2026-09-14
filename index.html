@@ -212,6 +212,34 @@
   .btn-notif{background:var(--red);color:#fff;padding:8px 14px;font-size:.8rem}
 
   .hist{font-size:.75rem;color:var(--muted)}
+
+  /* Guía de poda */
+  .prune-img-wrap{
+    position:relative;border-radius:12px;overflow:hidden;
+    background:#e9efe6;cursor:crosshair;
+  }
+  .prune-img-wrap img{width:100%;display:block;pointer-events:auto}
+  .marker{
+    position:absolute;transform:translate(-50%,-50%);
+    background:var(--red);color:#fff;font-size:.72rem;font-weight:700;
+    width:24px;height:24px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(0,0,0,.35);border:2px solid #fff;
+  }
+  .marker.static{position:static;transform:none;flex-shrink:0}
+  .marker-item{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .marker-item input{
+    flex:1;padding:8px 10px;border:1px solid #d7e0d2;border-radius:8px;
+    font-size:.82rem;font-family:inherit;outline:none;
+  }
+  .tips{
+    background:var(--green-light);border-radius:12px;padding:12px 14px;
+    font-size:.8rem;margin:12px 0;
+  }
+  .tips li{margin-left:16px;margin-bottom:4px}
+  body.dark .prune-img-wrap{background:#26351f}
+  body.dark .marker-item input{background:#26301f;border-color:#3a4a35;color:var(--ink)}
+  body.dark .tips{background:#26351f}
 </style>
 </head>
 <body>
@@ -328,6 +356,33 @@
   </div>
 </div>
 
+<!-- Modal guía de poda -->
+<div class="modal-back" id="pruneBack">
+  <div class="modal">
+    <h2>✂️ Guía de poda</h2>
+    <div id="prunePlantName" style="font-size:.85rem;color:var(--muted);margin-bottom:10px"></div>
+    <div class="photo-box" id="prunePhotoBox" style="margin-bottom:10px">
+      <span>📷 Sube una foto del estado actual de la planta</span>
+    </div>
+    <input type="file" id="prunePhotoFile" accept="image/*" style="display:none">
+    <div class="prune-img-wrap" id="pruneImgWrap" style="display:none"></div>
+    <p id="pruneHint" style="display:none;font-size:.78rem;color:var(--muted);margin:8px 0">
+      👆 Toca la imagen para marcar dónde debes podar. Luego escribe cómo hacer cada corte.
+    </p>
+    <div id="markersList"></div>
+    <div class="tips"><b>📖 Cómo podar correctamente:</b>
+      <ul>
+        <li>Desinfecta las tijeras con alcohol 70 % antes de empezar.</li>
+        <li>Corta en ángulo de 45° justo encima de un nudo o brote sano.</li>
+        <li>Elimina primero hojas amarillas, tallos secos o enfermos.</li>
+        <li>No retires más del 20–30 % de la planta en una sola poda.</li>
+      </ul>
+    </div>
+    <button class="btn btn-primary" id="btnSavePrune" style="width:100%">💾 Guardar guía</button>
+    <button class="btn btn-ghost" id="btnCancelPrune" style="width:100%;margin-top:8px">Cerrar</button>
+  </div>
+</div>
+
 <script>
 const LOCATIONS = ["Salón","Cocina","Dormitorio","Balcón","Jardín","Terraza","Oficina"];
 const SUN_LABEL = {sombra:"Sombra", parcial:"Sol parcial", pleno:"Sol pleno"};
@@ -407,10 +462,11 @@ function render(){
       </div>
       <div class="bar-row"><label>💧 Agua</label><div class="bar"><i class="${barClass(s.w)}" style="width:${s.w}%"></i></div><span>${s.w}%</span></div>
       <div class="bar-row"><label>✂️ Poda</label><div class="bar"><i class="${barClass(s.r)}" style="width:${s.r}%"></i></div><span>${s.r}%</span></div>
-      <div class="hist">💧 Regada ${fmtDate(p.lastWater)} · ${p.history ? p.history.length : 0} riegos registrados</div>
+      <div class="hist">💧 Regada ${fmtDate(p.lastWater)} · ${p.history ? p.history.length : 0} riegos · 📍 ${(p.pruneMarks||[]).length} cortes marcados</div>
       <div class="card-actions">
         <button class="btn btn-act" onclick="markDone('${p.id}','water')">💧 Regada</button>
         <button class="btn btn-act" onclick="markDone('${p.id}','prune')">✂️ Podada</button>
+        <button class="btn btn-act" onclick="openPrune('${p.id}')">📍 Guía poda</button>
         <button class="btn btn-del" onclick="delPlant('${p.id}')">🗑️</button>
       </div>
     </div>`;
@@ -465,16 +521,14 @@ function setPhotoPreview(src){
     : `<span id="photoHint">Toca para subir una foto 🌱</span>`;
 }
 photoBox.onclick = ()=> photoFile.click();
-photoFile.onchange = ()=>{
-  const file = photoFile.files[0];
-  if(!file) return;
+function compressImage(file, cb){
   const reader = new FileReader();
   reader.onload = e=>{
     const img = new Image();
     img.onload = ()=>{
       // Comprimir: máx. 800px de lado, JPEG 80%
       const MAX = 800;
-      let {width:w, height:h} = img;
+      let w = img.width, h = img.height;
       if(w > MAX || h > MAX){
         const k = MAX / Math.max(w, h);
         w = Math.round(w*k); h = Math.round(h*k);
@@ -482,12 +536,19 @@ photoFile.onchange = ()=>{
       const cv = document.createElement("canvas");
       cv.width = w; cv.height = h;
       cv.getContext("2d").drawImage(img, 0, 0, w, h);
-      fPhoto.value = cv.toDataURL("image/jpeg", 0.8);
-      setPhotoPreview(fPhoto.value);
+      cb(cv.toDataURL("image/jpeg", 0.8));
     };
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+}
+photoFile.onchange = ()=>{
+  const file = photoFile.files[0];
+  if(!file) return;
+  compressImage(file, src=>{
+    fPhoto.value = src;
+    setPhotoPreview(src);
+  });
 };
 
 document.getElementById("btnAdd").onclick = ()=>{
@@ -640,6 +701,75 @@ async function loadWeather(force){
   }catch(e){}
 }
 loadWeather(false);
+
+// --- Guía de poda con foto anotada ---
+let pruneId = null, prunePhoto = "", pruneMarks = [];
+
+window.openPrune = id=>{
+  const p = plants.find(x=>x.id===id);
+  if(!p) return;
+  pruneId = id;
+  prunePhoto = p.prunePhoto || p.photo || "";
+  pruneMarks = (p.pruneMarks || []).map(m=>({...m}));
+  document.getElementById("prunePlantName").textContent =
+    `Planta: ${p.name}${p.prunePhotoDate ? " · 📷 del " + fmtDate(p.prunePhotoDate) : ""}`;
+  renderPrunePhoto();
+  document.getElementById("pruneBack").classList.add("open");
+};
+
+function renderPrunePhoto(){
+  const wrap = document.getElementById("pruneImgWrap");
+  const hint = document.getElementById("pruneHint");
+  const box  = document.getElementById("prunePhotoBox");
+  const list = document.getElementById("markersList");
+  if(!prunePhoto){
+    wrap.style.display = "none";
+    hint.style.display = "none";
+    box.style.display = "block";
+    list.innerHTML = "";
+    return;
+  }
+  box.style.display = "none";
+  wrap.style.display = "block";
+  hint.style.display = "block";
+  wrap.innerHTML = `<img src="${prunePhoto}" alt="Estado actual">` +
+    pruneMarks.map((m,i)=>`<div class="marker" style="left:${m.x}%;top:${m.y}%">${i+1}</div>`).join("");
+  list.innerHTML = pruneMarks.map((m,i)=>`
+    <div class="marker-item">
+      <span class="marker static">${i+1}</span>
+      <input value="${esc(m.note||"")}" placeholder="Ej: corta a 45° justo encima del nudo" oninput="pruneMarks[${i}].note=this.value">
+      <button class="btn btn-del" style="flex:0 0 auto;padding:6px 10px" onclick="pruneMarks.splice(${i},1);renderPrunePhoto()">✖</button>
+    </div>`).join("");
+}
+
+document.getElementById("prunePhotoBox").onclick = ()=> document.getElementById("prunePhotoFile").click();
+document.getElementById("prunePhotoFile").onchange = e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  compressImage(file, src=>{ prunePhoto = src; renderPrunePhoto(); });
+};
+document.getElementById("pruneImgWrap").onclick = e=>{
+  if(e.target.tagName !== "IMG") return;
+  const r = e.currentTarget.getBoundingClientRect();
+  pruneMarks.push({
+    x: +((e.clientX - r.left) / r.width * 100).toFixed(1),
+    y: +((e.clientY - r.top) / r.height * 100).toFixed(1),
+    note: ""
+  });
+  renderPrunePhoto();
+};
+document.getElementById("btnSavePrune").onclick = ()=>{
+  const p = plants.find(x=>x.id===pruneId);
+  if(p){
+    p.prunePhoto = prunePhoto;
+    p.pruneMarks = pruneMarks;
+    p.prunePhotoDate = Date.now();
+    save(); render(); checkAlerts();
+  }
+  document.getElementById("pruneBack").classList.remove("open");
+};
+document.getElementById("btnCancelPrune").onclick = ()=> document.getElementById("pruneBack").classList.remove("open");
+document.getElementById("pruneBack").onclick = e=>{ if(e.target.id === "pruneBack") e.target.classList.remove("open"); };
 
 // --- PWA: service worker para instalar en Android/iPhone ---
 if("serviceWorker" in navigator){
