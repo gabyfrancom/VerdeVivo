@@ -3,6 +3,8 @@
   "short_name": "VerdeVivo",
   "description": "Controla el estado de tus plantas: riego, poda, sol, ubicación y clima.",
   "start_url": "./index.html",
+  "scope": "./",
+  "id": "./index.html",
   "display": "standalone",
   "background_color": "#f4f7f2",
   "theme_color": "#2b5a2d",

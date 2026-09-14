@@ -1003,52 +1003,139 @@ function dataURLtoBlob(dataURL){
   return new Blob([arr], {type: mime});
 }
 
+// Motor 1: iNaturalist (gratis, cuando permite acceso anónimo)
+async function tryINat(blob){
+  const fd = new FormData();
+  fd.append("image", blob, "planta.jpg");
+  const ctrl = new AbortController();
+  const to = setTimeout(()=>ctrl.abort(), 40000);
+  try{
+    const r = await fetch("https://api.inaturalist.org/v1/computervision/score_image", {method:"POST", body:fd, signal:ctrl.signal});
+    if(!r.ok) throw new Error("iNaturalist HTTP " + r.status);
+    const j = await r.json();
+    const res = (j.results || []).slice(0, 3).map(x => ({
+      sci:    x.taxon.name,
+      common: x.taxon.preferred_common_name || x.taxon.english_common_name || "",
+      score:  x.combined_score
+    }));
+    if(!res.length) throw new Error("iNaturalist sin resultados");
+    return res;
+  } finally { clearTimeout(to); }
+}
+
+// Motor 2: Plant.id (gratis con clave API personal)
+async function tryPlantId(blob){
+  const key = (localStorage.getItem("vv_apikey") || "").trim();
+  if(!key) throw new Error("NO_KEY");
+  const fd = new FormData();
+  fd.append("images", blob, "planta.jpg");
+  const ctrl = new AbortController();
+  const to = setTimeout(()=>ctrl.abort(), 60000);
+  try{
+    const r = await fetch("https://plant.id/api/v3/identification?details=common_names&language=es", {
+      method: "POST",
+      headers: { "Api-Key": key },
+      body: fd,
+      signal: ctrl.signal
+    });
+    if(!r.ok) throw new Error("Plant.id HTTP " + r.status);
+    const j = await r.json();
+    const sug = (((j.result || {}).classification) || {}).suggestions || [];
+    const res = sug.slice(0, 3).map(s => {
+      const cn = s.details && s.details.common_names;
+      let common = "";
+      if(typeof cn === "string") common = cn;
+      else if(Array.isArray(cn)) common = cn[0] || "";
+      else if(cn && typeof cn === "object"){
+        const arr = cn.es || cn.en || Object.values(cn)[0];
+        common = (Array.isArray(arr) ? arr[0] : arr) || "";
+      }
+      return {sci: s.name, common, score: s.probability};
+    });
+    if(!res.length) throw new Error("Plant.id sin resultados");
+    return res;
+  } finally { clearTimeout(to); }
+}
+
+function renderSuggestions(suggestions){
+  const box = document.getElementById("idResults");
+  box.innerHTML = `<p style="font-size:.78rem;color:var(--muted);margin-bottom:6px">Toca una sugerencia para usarla (verifícala antes de guardar):</p>` +
+    suggestions.map((s, i)=>{
+      const pct = Math.round((s.score <= 1 ? s.score * 100 : s.score));
+      return `<button type="button" class="btn id-chip" data-i="${i}">
+        <div><b>${s.common || s.sci}</b><span>${s.sci}</span></div><em>${pct}%</em>
+      </button>`;
+    }).join("");
+  box.querySelectorAll(".id-chip").forEach(chip=>{
+    chip.onclick = ()=>{
+      const s = suggestions[+chip.dataset.i];
+      document.getElementById("fName").value = s.common || s.sci;
+      document.getElementById("fSpecies").value = s.sci;
+      const k = matchDB(s.sci) || matchDB(s.common);
+      const note = document.getElementById("dbNote");
+      if(k){
+        autofillFromDB(k);
+        note.textContent = `📖 Ficha aplicada: ${PLANT_DB[k].name} — cuidados rellenados`;
+      } else {
+        note.textContent = "📖 Sin ficha en la base de datos — ajusta los cuidados manualmente";
+      }
+      box.innerHTML = `<p style="font-size:.8rem;color:var(--green)">✅ ${s.common || s.sci} seleccionado</p>`;
+    };
+  });
+}
+
+function renderKeyPrompt(msg){
+  const box = document.getElementById("idResults");
+  box.innerHTML = `
+    <p style="font-size:.8rem;color:var(--red);margin-bottom:6px">⚠️ ${msg}</p>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:6px">
+      iNaturalist ahora exige cuenta de usuario, por lo que el identificador usa <b>Plant.id</b>.
+      Consigue una clave <b>gratis</b> en
+      <a href="https://web.plant.id/signup" target="_blank" rel="noopener" style="color:var(--green)">web.plant.id/signup</a>
+      y pégala aquí (se guarda solo en tu móvil, nunca se comparte):
+    </p>
+    <div style="display:flex;gap:8px;margin-bottom:4px">
+      <input id="apiKeyInput" type="text" placeholder="Pega tu clave de Plant.id"
+        style="flex:1;padding:10px 12px;border:1px solid #d7e0d2;border-radius:10px;font-size:.85rem;background:var(--card);color:var(--ink)">
+      <button class="btn btn-primary" id="btnSaveKey" style="padding:10px 14px">Guardar</button>
+    </div>`;
+  const saved = localStorage.getItem("vv_apikey");
+  if(saved) document.getElementById("apiKeyInput").value = saved;
+  document.getElementById("btnSaveKey").onclick = ()=>{
+    const v = document.getElementById("apiKeyInput").value.trim();
+    if(!v) return;
+    localStorage.setItem("vv_apikey", v);
+    document.getElementById("btnIdentify").click();
+  };
+}
+
 document.getElementById("btnIdentify").onclick = async ()=>{
-  const btn  = document.getElementById("btnIdentify");
-  const box  = document.getElementById("idResults");
+  const btn = document.getElementById("btnIdentify");
+  const box = document.getElementById("idResults");
   if(!fPhoto.value){
     box.innerHTML = `<p style="font-size:.8rem;color:var(--muted)">Primero sube o toma una foto de la planta 📷</p>`;
     return;
   }
   btn.disabled = true;
-  box.innerHTML = `<p style="font-size:.8rem;color:var(--muted)">🔍 Analizando la foto con iNaturalist… (unos segundos)</p>`;
+  box.innerHTML = `<p style="font-size:.8rem;color:var(--muted)">🔍 Analizando la foto… (puede tardar hasta 1 minuto)</p>`;
+  const blob = dataURLtoBlob(fPhoto.value);
   try{
-    const fd = new FormData();
-    fd.append("image", dataURLtoBlob(fPhoto.value), "planta.jpg");
-    const r = await fetch("https://api.inaturalist.org/v1/computervision/score_image", {method: "POST", body: fd});
-    if(!r.ok) throw new Error("HTTP " + r.status);
-    const j = await r.json();
-    const suggestions = (j.results || []).slice(0, 3).map(x => ({
-      sci:    x.taxon.name,
-      common: x.taxon.preferred_common_name || x.taxon.english_common_name || "",
-      score:  x.combined_score
-    }));
-    if(!suggestions.length) throw new Error("sin resultados");
-    box.innerHTML = `<p style="font-size:.78rem;color:var(--muted);margin-bottom:6px">Toca una sugerencia para usarla (verifícala antes de guardar):</p>` +
-      suggestions.map((s, i)=>{
-        const pct = Math.round((s.score <= 1 ? s.score * 100 : s.score));
-        return `<button type="button" class="btn id-chip" data-i="${i}">
-          <div><b>${s.common || s.sci}</b><span>${s.sci}</span></div><em>${pct}%</em>
-        </button>`;
-      }).join("");
-    box.querySelectorAll(".id-chip").forEach(chip=>{
-      chip.onclick = ()=>{
-        const s = suggestions[+chip.dataset.i];
-        document.getElementById("fName").value = s.common || s.sci;
-        document.getElementById("fSpecies").value = s.sci;
-        const k = matchDB(s.sci) || matchDB(s.common);
-        const note = document.getElementById("dbNote");
-        if(k){
-          autofillFromDB(k);
-          note.textContent = `📖 Ficha aplicada: ${PLANT_DB[k].name} — cuidados rellenados`;
-        } else {
-          note.textContent = "📖 Sin ficha en la base de datos — ajusta los cuidados manualmente";
-        }
-        box.innerHTML = `<p style="font-size:.8rem;color:var(--green)">✅ ${s.common || s.sci} seleccionado</p>`;
-      };
-    });
+    let suggestions;
+    try{
+      suggestions = await tryINat(blob);
+    }catch(e1){
+      try{
+        suggestions = await tryPlantId(blob);
+      }catch(e2){
+        if(String(e2).includes("NO_KEY")) renderKeyPrompt("El identificador necesita una clave gratuita de Plant.id.");
+        else renderKeyPrompt("No se pudo identificar (" + e2.message + ").");
+        btn.disabled = false;
+        return;
+      }
+    }
+    renderSuggestions(suggestions);
   }catch(err){
-    box.innerHTML = `<p style="font-size:.8rem;color:var(--red)">⚠️ No se pudo identificar (revisa tu conexión e inténtalo de nuevo).</p>`;
+    renderKeyPrompt("Error inesperado: " + err.message);
   }
   btn.disabled = false;
 };

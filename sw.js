@@ -1,5 +1,5 @@
 /* VerdeVivo - Service Worker (cache offline) */
-const CACHE = "verdevivo-v1";
+const CACHE = "verdevivo-v2";
 const ASSETS = [
   "./",
   "./index.html",
