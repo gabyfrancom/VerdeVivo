@@ -9,6 +9,7 @@
 - **Alertas del próximo riego** — banner en pantalla y notificación del navegador cuando toca regar (verifica cada minuto según la fecha/hora del dispositivo).
 - **Clima en tiempo real** — temperatura ambiente, humedad relativa y presión atmosférica de tu ubicación exacta, vía [Open-Meteo](https://open-meteo.com/) (gratis, sin API key) y la geolocalización del móvil.
 - **Fotos** — sube fotos desde la galería o toma una foto al momento con la cámara (se comprimen automáticamente).
+- **🔍 Identificación por IA** — toma o sube una foto y pulsa "Identificar planta": la app la analiza con la visión por computadora de **iNaturalist** (gratis, sin API key) y muestra las 3 mejores coincidencias con % de confianza. Al elegir una, rellena nombre, especie y cuidados automáticamente.
 - **Fichas de cuidados integradas** — base de datos de 14 plantas comunes (recopilada de RHS, Gardenia, ASPCA y Wikipedia). Al escribir el nombre, la app detecta la especie y rellena sol, riego y poda automáticamente.
 - **📖 Botón de ficha** junto al nombre: descripción, luz, riego, humedad, temperatura, sustrato, abonado, cómo podar, problemas frecuentes, toxicidad y enlaces a bibliografía.
 - **Ubicaciones y sol** — asigna cada planta a una ubicación (salón, balcón, jardín...) y su necesidad de sol: sombra, sol parcial o sol pleno.

@@ -243,6 +243,19 @@
   .photo-actions .btn{flex:1;padding:8px;font-size:.8rem;background:var(--green-light);color:var(--green-dark)}
   body.dark .photo-actions .btn{background:#2c4023;color:#bfe3b8}
 
+  /* Resultados de identificación IA */
+  .id-chip{
+    display:flex;justify-content:space-between;gap:8px;align-items:center;width:100%;
+    text-align:left;background:var(--green-light);color:var(--ink);
+    border:1px solid #d7e0d2;padding:10px 12px;font-size:.85rem;margin-bottom:6px;
+  }
+  .id-chip b{display:block}
+  .id-chip span{font-size:.72rem;color:var(--muted)}
+  .id-chip em{font-style:normal;font-weight:700;color:var(--green-dark);white-space:nowrap}
+  body.dark .id-chip{background:#2c4023;color:var(--ink);border-color:#3a4a35}
+  body.dark .id-chip span{color:#9cb096}
+  body.dark .id-chip em{color:#bfe3b8}
+
   /* Botón ficha (📖) y modal ficha */
   .src-link{background:none;border:none;cursor:pointer;font-size:.95rem;padding:0 2px;vertical-align:middle}
   .ficha h4{margin:12px 0 3px;font-size:.92rem}
@@ -323,6 +336,8 @@
           <button type="button" class="btn" id="btnGallery">📁 Galería</button>
           <button type="button" class="btn" id="btnCamera">📷 Cámara</button>
         </div>
+        <button type="button" class="btn" id="btnIdentify" style="width:100%;margin-top:8px;background:#5b3e86;color:#fff">🔍 Identificar planta con IA</button>
+        <div id="idResults" style="margin-top:8px"></div>
         <input type="file" id="fPhotoFile" accept="image/*" style="display:none">
         <input type="file" id="fCameraFile" accept="image/*" capture="environment" style="display:none">
       </div>
@@ -911,7 +926,47 @@ const PLANT_DB = {
     desc:"Hortaliza de sol pleno; requiere tutores y poda de brotes axilares (chupones).",
     pruneHow:"Elimina los brotes axilares (chupones) que crecen entre tallo y rama cuando miden 5–8 cm. Retira hojas bajas que toquen el suelo.",
     problems:"Rajado de frutos por riegos irregulares. Ataque de mosca blanca y pulgón.",
-    toxic:"Fruto comestible; hojas y tallos tóxicos (solanina)."}
+    toxic:"Fruto comestible; hojas y tallos tóxicos (solanina)."},
+  maranta:{name:"Maranta", sci:"Maranta leuconeura", keys:["maranta","leuconeura","calathea","oracion","oración","prayer"],
+    sun:"sombra", water:5, prune:60, type:"interior", hum:"50–70 %", temp:"18–27 °C",
+    soil:"Sustrato ligero, rico y bien drenado (turba + perlita)",
+    fert:"Abono diluido cada 4 semanas en primavera-verano",
+    desc:"La 'planta de la oración': sus hojas se pliegan hacia arriba por la noche. De hojas vistosas con nervaduras rojas o claras.",
+    pruneHow:"Retira hojas amarillas o secas cortando el pecíolo a ras del rizoma. No necesita poda de formación.",
+    problems:"Puntas marrones: agua dura o aire seco. Hojas que no se pliegan: estrés o luz excesiva. Plagas: cochinilla y araña roja.",
+    toxic:"No tóxica; segura con mascotas."},
+  anturio:{name:"Anturio", sci:"Anthurium andraeanum", keys:["anturio","anthurium","andraeanum","flor de flamenco"],
+    sun:"parcial", water:6, prune:90, type:"interior", hum:"60–80 %", temp:"18–28 °C",
+    soil:"Sustrato aireado: corteza, musgo y perlita",
+    fert:"Cada 6 semanas en primavera-verano",
+    desc:"Planta de interior de larga floración (espata roja, rosa o blanca); necesita humedad ambiental alta.",
+    pruneHow:"Corta flores marchitas y hojas amarillas a ras del tallo. Limpia las hojas con paño húmedo.",
+    problems:"Hojas amarillas: exceso de riego o sol directo. No florece: poca luz o falta de nutrientes.",
+    toxic:"Tóxica si se ingiere (oxalatos)."},
+  dracaena:{name:"Drácena", sci:"Dracaena marginata", keys:["dracena","drácena","marginata","tronco"],
+    sun:"parcial", water:12, prune:180, type:"interior", hum:"40–60 %", temp:"18–30 °C",
+    soil:"Sustrato universal con buen drenaje",
+    fert:"Cada 2 meses en primavera-verano",
+    desc:"Árbol de interior de hojas estrechas con bordes rojizos; muy resistente y de crecimiento lento.",
+    pruneHow:"Corta el tronco donde quieras que ramifique (rebrota de la yema). Retira hojas secas de la base.",
+    problems:"Puntas marrones: exceso de sales o aire seco. Hojas blandas: frío o exceso de riego.",
+    toxic:"Tóxica para gatos y perros."},
+  jazmin:{name:"Jazmín", sci:"Jasminum spp.", keys:["jazmin","jazmín","jasminum"],
+    sun:"pleno", water:4, prune:60, type:"exterior", hum:"50–70 %", temp:"10–30 °C",
+    soil:"Suelo fresco, fértil y drenado",
+    fert:"Abono rico en potasio antes de la floración",
+    desc:"Enredadera o arbusto aromático de floración intensa en primavera-verano; necesita sol pleno.",
+    pruneHow:"Poda después de la floración: recorta ramas floradas a la mitad y elimina ramas débiles o cruzadas.",
+    problems:"No florece: poco sol o poda mal cronometrada. Pulgón en brotes tiernos.",
+    toxic:"No tóxico (Jasminum común)."},
+  croton:{name:"Crotón", sci:"Codiaeum variegatum", keys:["croton","crotón","codiaeum","variegatum"],
+    sun:"pleno", water:5, prune:90, type:"interior", hum:"50–70 %", temp:"20–30 °C",
+    soil:"Sustrato rico y ligeramente ácido, con drenaje",
+    fert:"Cada 4 semanas en época de crecimiento",
+    desc:"Espectacular follaje multicolor (verde, amarillo, rojo, naranja); pierde color si le falta luz.",
+    pruneHow:"Pínzalo en primavera para mantener forma compacta. Corta justo encima de una hoja o nudo.",
+    problems:"Pérdida de hojas: frío, riego irregular o cambios bruscos de lugar. Pulgón y cochinilla.",
+    toxic:"Tóxica si se ingiere."}
 };
 
 const norm = s => (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
@@ -936,6 +991,66 @@ document.getElementById("fCameraFile").onchange = e=>{
   const file = e.target.files[0];
   if(!file) return;
   compressImage(file, src=>{ fPhoto.value = src; setPhotoPreview(src); });
+};
+
+// --- Identificación por IA (iNaturalist, gratis, sin API key) ---
+function dataURLtoBlob(dataURL){
+  const [meta, b64] = dataURL.split(",");
+  const mime = (meta.match(/data:(.*);/) || [])[1] || "image/jpeg";
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], {type: mime});
+}
+
+document.getElementById("btnIdentify").onclick = async ()=>{
+  const btn  = document.getElementById("btnIdentify");
+  const box  = document.getElementById("idResults");
+  if(!fPhoto.value){
+    box.innerHTML = `<p style="font-size:.8rem;color:var(--muted)">Primero sube o toma una foto de la planta 📷</p>`;
+    return;
+  }
+  btn.disabled = true;
+  box.innerHTML = `<p style="font-size:.8rem;color:var(--muted)">🔍 Analizando la foto con iNaturalist… (unos segundos)</p>`;
+  try{
+    const fd = new FormData();
+    fd.append("image", dataURLtoBlob(fPhoto.value), "planta.jpg");
+    const r = await fetch("https://api.inaturalist.org/v1/computervision/score_image", {method: "POST", body: fd});
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    const suggestions = (j.results || []).slice(0, 3).map(x => ({
+      sci:    x.taxon.name,
+      common: x.taxon.preferred_common_name || x.taxon.english_common_name || "",
+      score:  x.combined_score
+    }));
+    if(!suggestions.length) throw new Error("sin resultados");
+    box.innerHTML = `<p style="font-size:.78rem;color:var(--muted);margin-bottom:6px">Toca una sugerencia para usarla (verifícala antes de guardar):</p>` +
+      suggestions.map((s, i)=>{
+        const pct = Math.round((s.score <= 1 ? s.score * 100 : s.score));
+        return `<button type="button" class="btn id-chip" data-i="${i}">
+          <div><b>${s.common || s.sci}</b><span>${s.sci}</span></div><em>${pct}%</em>
+        </button>`;
+      }).join("");
+    box.querySelectorAll(".id-chip").forEach(chip=>{
+      chip.onclick = ()=>{
+        const s = suggestions[+chip.dataset.i];
+        document.getElementById("fName").value = s.common || s.sci;
+        document.getElementById("fSpecies").value = s.sci;
+        const k = matchDB(s.sci) || matchDB(s.common);
+        const note = document.getElementById("dbNote");
+        if(k){
+          autofillFromDB(k);
+          note.textContent = `📖 Ficha aplicada: ${PLANT_DB[k].name} — cuidados rellenados`;
+        } else {
+          note.textContent = "📖 Sin ficha en la base de datos — ajusta los cuidados manualmente";
+        }
+        box.innerHTML = `<p style="font-size:.8rem;color:var(--green)">✅ ${s.common || s.sci} seleccionado</p>`;
+      };
+    });
+  }catch(err){
+    box.innerHTML = `<p style="font-size:.8rem;color:var(--red)">⚠️ No se pudo identificar (revisa tu conexión e inténtalo de nuevo).</p>`;
+  }
+  btn.disabled = false;
 };
 
 // Autocompletar cuidados desde la ficha al escribir el nombre
